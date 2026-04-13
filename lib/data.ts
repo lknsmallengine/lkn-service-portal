@@ -368,21 +368,46 @@ export async function getChecklistTemplates(requestType?: string): Promise<Check
 }
 
 
-export async function getNotificationTemplate, NotificationSendLogs(): Promise<NotificationTemplate, NotificationSendLog[]> {
-  if (useDemoData) return demoNotificationTemplate, NotificationSendLogs;
+export async function getNotificationTemplate(
+  key: string
+): Promise<NotificationTemplate | null> {
+  if (useDemoData) {
+    return (
+      demoNotificationTemplates.find((t) => t.key === key && t.is_active) ?? null
+    );
+  }
+
   const supabase = createSupabaseServerClient();
-  if (!supabase) return demoNotificationTemplate, NotificationSendLogs;
-  const { data, error } = await supabase.from('notification_templates').select('*').order('template_key', { ascending: true });
-  if (error || !data?.length) return demoNotificationTemplate, NotificationSendLogs;
-  return data as NotificationTemplate, NotificationSendLog[];
+  if (!supabase) {
+    return (
+      demoNotificationTemplates.find((t) => t.key === key && t.is_active) ?? null
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('notification_templates')
+    .select('*')
+    .eq('key', key)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error) return null;
+  return (data as NotificationTemplate) ?? null;
 }
 
+export async function getNotificationSendLogs(): Promise<NotificationSendLog[]> {
+  if (useDemoData) return demoNotificationSendLogs;
 
-export async function getNotificationSendLogs(limit = 100): Promise<NotificationSendLog[]> {
-  if (useDemoData) return demoNotificationSendLogs.slice(0, limit) as NotificationSendLog[];
   const supabase = createSupabaseServerClient();
-  if (!supabase) return demoNotificationSendLogs.slice(0, limit) as NotificationSendLog[];
-  const { data, error } = await supabase.from('notification_send_logs').select('*').order('created_at', { ascending: false }).limit(limit);
-  if (error) return demoNotificationSendLogs.slice(0, limit) as NotificationSendLog[];
-  return data as NotificationSendLog[];
+  if (!supabase) return demoNotificationSendLogs;
+
+  const { data, error } = await supabase
+    .from('notification_send_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) return [];
+  return (data as NotificationSendLog[]) ?? [];
+}
 }
